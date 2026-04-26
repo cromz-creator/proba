@@ -385,15 +385,13 @@ function updateMapColors() {
     selectedLayer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1 });
   }
 }
-
+// ─── SELECT OPCINA ───────────────────────────────────────────────────────
 async function selectOpcina(feat, layer) {
   if (selectedLayer) geojsonLayer.resetStyle(selectedLayer);
   selectedLayer = layer;
   layer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1 });
-  
   const geoKey = feat.properties.geo_key.replace(/ /g, '_');
   const data = sveOpcine[geoKey];
-  
   showSidebar(data, feat.properties.name);
 }
 // ─── SIDEBAR RENDER ────────────────────────────────────────────────────────
