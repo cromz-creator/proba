@@ -340,8 +340,9 @@ function getMaxVotes(field) {
 }
 
 function renderMap() {
-  const variable = document.getElementById('colorVar').value;
   if (geojsonLayer) map.removeLayer(geojsonLayer);
+  
+  const variable = document.getElementById('colorVar').value;
   
   geojsonLayer = L.geoJSON(geojsonData, {
     style: (feat) => ({
