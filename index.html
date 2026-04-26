@@ -392,14 +392,16 @@ async function selectOpcina(feat, layer) {
   selectedLayer = layer;
   layer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1, zIndex: 999 });
   
-const key = feature.properties.geo_key.replace(/ /g, '_')  
- if (!geoKey || !feat.properties.has_data) {
+  const geoKey = feat.properties.geo_key.replace(/ /g, '_');
+  
+  if (!geoKey || !feat.properties.has_data) {
     showSidebar(null, feat.properties.name);
     return;
   }
   
- console.log('geoKey:', geoKey, 'found:', !!sveOpcine[geoKey], 'sample keys:', Object.keys(sveOpcine).slice(0,3));
-const data = sveOpcine[geoKey];
+  console.log('geoKey:', geoKey, 'found:', !!sveOpcine[geoKey], 'sample keys:', Object.keys(sveOpcine).slice(0,3));
+  
+  const data = sveOpcine[geoKey];
   if (data) {
     showSidebar(data, feat.properties.name);
   } else {
