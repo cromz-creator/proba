@@ -386,37 +386,16 @@ function updateMapColors() {
   }
 }
 
-// ─── SELECT OPCINA ─────────────────────────────────────────────────────────
 async function selectOpcina(feat, layer) {
   if (selectedLayer) geojsonLayer.resetStyle(selectedLayer);
   selectedLayer = layer;
-  layer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1, zIndex: 999 });
+  layer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1 });
   
   const geoKey = feat.properties.geo_key.replace(/ /g, '_');
-  
-  if (!geoKey || !feat.properties.has_data) {
-    showSidebar(null, feat.properties.name);
-    return;
-  }
-  
-  console.log('geoKey:', geoKey, 'found:', !!sveOpcine[geoKey], 'sample keys:', Object.keys(sveOpcine).slice(0,3));
-  
   const data = sveOpcine[geoKey];
-  if (data) {
-    showSidebar(data, feat.properties.name);
-  } else {
-    showSidebar(null, feat.properties.name);
-  }
+  
+  showSidebar(data, feat.properties.name);
 }
-
-function showLoading() {
-  document.getElementById('sidebarContent').innerHTML = `
-    <div class="placeholder">
-      <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
-      <p>Učitavanje podataka…</p>
-    </div>`;
-}
-
 // ─── SIDEBAR RENDER ────────────────────────────────────────────────────────
 function showSidebar(data, name) {
   if (!data) {
