@@ -371,8 +371,7 @@ function renderMap() {
           }
           layer.closeTooltip();
         },
-        click: () => selectOpcina(feat, layer)
-      });
+click: () => { console.log('KLIK:', feat.properties.geo_key); selectOpcina(feat, layer); }      });
     }
   }).addTo(map);
 
