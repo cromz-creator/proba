@@ -41,7 +41,5 @@ npx serve .
 
 ## Napomena o Zagrebu
 
-Zagreb je podijeljen na 4 izborne zone (I., II., VI., VII. IJ).
-Na karti su prikazane 3 zone (I., II., VI.) jer VII. nema odgovarajuće 
-granice u GeoJSON-u. Podaci za Zagreb-Južni dio dostupni su u 
-data/opcine/zagreb_ij7.json.
+Zagreb je podijeljen na 3 izborne zone (I., II., VI.).
+
