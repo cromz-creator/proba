@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parlamentarni izbori 2024 — Hrvatska</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.5px; }
+  header .subtitle { font-size: 0.8rem; color: #a0aec0; margin-top: 2px; }
+
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  #map { flex: 1; z-index: 1; }
+
+  .sidebar {
+    width: 420px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #e2e8f0;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .controls {
+    padding: 12px 16px;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+  .controls label { font-size: 0.75rem; font-weight: 600; color: #4a5568; display: block; margin-bottom: 4px; }
+  .controls select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: white;
+    cursor: pointer;
+    color: #2d3748;
+  }
+
+  .sidebar-content { flex: 1; overflow-y: auto; padding: 0; }
+
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #a0aec0;
+    padding: 24px;
+    text-align: center;
+    gap: 12px;
+  }
+  .placeholder svg { opacity: 0.3; }
+  .placeholder p { font-size: 0.9rem; line-height: 1.5; }
+
+  .opcina-header {
+    padding: 16px;
+    background: #1a1a2e;
+    color: white;
+  }
+  .opcina-header h2 { font-size: 1.1rem; font-weight: 700; }
+  .opcina-header .meta { font-size: 0.75rem; color: #a0aec0; margin-top: 4px; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .stat-box {
+    background: white;
+    padding: 12px 16px;
+  }
+  .stat-box .val { font-size: 1.3rem; font-weight: 700; color: #1a1a2e; }
+  .stat-box .lbl { font-size: 0.7rem; color: #718096; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    color: #718096;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+  }
+  .tab.active { color: #1a1a2e; border-bottom-color: #e53e3e; }
+  .tab:hover:not(.active) { background: #f7fafc; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Stranke tab */
+  .stranke-list { padding: 8px 0; }
+  .stranka-row {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f4f8;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .stranka-row:hover { background: #f7fafc; }
+  .stranka-row.expanded { background: #f0f4f8; }
+  .stranka-top { display: flex; align-items: center; gap: 10px; }
+  .stranka-color { width: 10px; height: 32px; border-radius: 3px; flex-shrink: 0; }
+  .stranka-name { font-size: 0.78rem; font-weight: 600; flex: 1; line-height: 1.3; color: #2d3748; }
+  .stranka-votes { text-align: right; }
+  .stranka-votes .num { font-size: 0.9rem; font-weight: 700; color: #1a1a2e; }
+  .stranka-votes .pct { font-size: 0.72rem; color: #718096; }
+  .stranka-bar-wrap { margin-top: 6px; background: #edf2f7; border-radius: 3px; height: 5px; }
+  .stranka-bar { height: 5px; border-radius: 3px; transition: width 0.4s; }
+
+  /* Kandidati expand */
+  .kandidati-list { display: none; padding: 8px 0 4px 20px; }
+  .stranka-row.expanded .kandidati-list { display: block; }
+  .kandidat-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.75rem; color: #4a5568; }
+  .kandidat-row .pref { font-weight: 600; color: #2d3748; min-width: 50px; text-align: right; }
+
+  /* BM tab */
+  .bm-search { padding: 10px 16px 6px; }
+  .bm-search input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    outline: none;
+  }
+  .bm-search input:focus { border-color: #4299e1; }
+  .bm-list { }
+  .bm-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f4f8;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .bm-item:hover { background: #f7fafc; }
+  .bm-item.expanded { background: #f0f4f8; }
+  .bm-name { font-size: 0.82rem; font-weight: 600; color: #2d3748; }
+  .bm-sub { font-size: 0.72rem; color: #718096; margin-top: 2px; }
+  .bm-stats { font-size: 0.75rem; color: #4a5568; margin-top: 4px; }
+  .bm-detail { display: none; padding: 8px 0 4px 16px; }
+  .bm-item.expanded .bm-detail { display: block; }
+  .bm-stranke { }
+  .bm-stranka-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.73rem; color: #4a5568; }
+
+  .loading-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    font-size: 0.9rem;
+    color: #4a5568;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1000;
+  }
+  .spinner { width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: #4299e1; border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Legend */
+  .legend {
+    position: absolute;
+    bottom: 24px;
+    left: 10px;
+    background: white;
+    padding: 10px 14px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 500;
+    min-width: 140px;
+  }
+  .legend-title { font-size: 0.72rem; font-weight: 700; color: #4a5568; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; padding: 2px 0; font-size: 0.75rem; color: #2d3748; }
+  .legend-color { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🗳 Parlamentarni izbori 2024 — Hrvatska</h1>
+    <div class="subtitle">Rezultati po općinama i gradovima · Kliknite na kartu za detalje</div>
+  </div>
+</header>
+
+<div class="main">
+  <div id="map">
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+      Učitavanje karte…
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="controls">
+      <label>Prikaži na karti:</label>
+      <select id="colorVar" onchange="updateMapColors()">
+        <option value="pobjednik">Pobjednička stranka</option>
+        <option value="izlaznost">Izlaznost (%)</option>
+        <option value="hdz">HDZ — glasovi</option>
+        <option value="sdp">SDP — glasovi</option>
+        <option value="mozemo">MOŽEMO! — glasovi</option>
+        <option value="dp">Domovinski pokret — glasovi</option>
+        <option value="most">MOST — glasovi</option>
+      </select>
+    </div>
+
+    <div class="sidebar-content" id="sidebarContent">
+      <div class="placeholder">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="28" stroke="#a0aec0" stroke-width="2"/>
+          <path d="M20 32 L32 20 L44 32 L32 44 Z" stroke="#a0aec0" stroke-width="2" fill="none"/>
+        </svg>
+        <p>Kliknite na općinu ili grad<br>na karti za prikaz rezultata.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const PARTY_COLORS = {
+  'HDZ':    '#1a56db',
+  'SDP':    '#e53e3e',
+  'MOŽEMO!':'#48bb78',
+  'DP':     '#805ad5',
+  'MOST':   '#ed8936',
+  'ŽZ':     '#f6ad55',
+  'REF':    '#38b2ac',
+  'DEM':    '#fc8181',
+  'HNS':    '#4299e1',
+};
+
+function partyColor(name) {
+  if (!name) return '#cbd5e0';
+  for (const [k, v] of Object.entries(PARTY_COLORS)) {
+    if (name.includes(k)) return v;
+  }
+  return '#a0aec0';
+}
+
+function izlaznostColor(pct) {
+  if (pct === undefined || pct === null) return '#edf2f7';
+  if (pct >= 70) return '#276749';
+  if (pct >= 60) return '#38a169';
+  if (pct >= 50) return '#68d391';
+  if (pct >= 40) return '#c6f6d5';
+  return '#f0fff4';
+}
+
+function voteColor(votes, max) {
+  if (!votes || max === 0) return '#edf2f7';
+  const t = votes / max;
+  const r = Math.round(255 - t * (255 - 49));
+  const g = Math.round(255 - t * (255 - 130));
+  const b = Math.round(255 - t * (255 - 206));
+  return `rgb(${r},${g},${b})`;
+}
+
+// ─── MAP INIT ──────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true, preferCanvas: false });
+map.setView([45.1, 16.5], 7);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap, © CARTO',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+let geojsonLayer = null;
+let geojsonData = null;
+let sveOpcine = null;
+let selectedLayer = null;
+
+// ─── LOAD DATA ─────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [geoRes, opcineRes] = await Promise.all([
+      fetch('data/granice.geojson'),
+      fetch('data/sve_opcine.json')
+    ]);
+    geojsonData = await geoRes.json();
+    sveOpcine = await opcineRes.json();
+    document.getElementById('loading').style.display = 'none';
+    renderMap();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '⚠ Greška pri učitavanju podataka';
+    console.error(e);
+  }
+}
+
+// ─── MAP RENDERING ─────────────────────────────────────────────────────────
+function getFeatureColor(props, variable) {
+  if (!props.has_data) return '#f0f4f8';
+  if (variable === 'pobjednik') return partyColor(props.pobjednik);
+  if (variable === 'izlaznost') return izlaznostColor(props.izlaznost);
+  
+  const varMap = { hdz: 'hdz', sdp: 'sdp', mozemo: 'mozemo', dp: 'dp', most: 'most' };
+  const field = varMap[variable];
+  if (field) {
+    const max = getMaxVotes(field);
+    return voteColor(props[field], max);
+  }
+  return '#e2e8f0';
+}
+
+function getMaxVotes(field) {
+  if (!geojsonData) return 1;
+  return Math.max(...geojsonData.features.map(f => f.properties[field] || 0));
+}
+
+function renderMap() {
+  const variable = document.getElementById('colorVar').value;
+  if (geojsonLayer) map.removeLayer(geojsonLayer);
+  
+  geojsonLayer = L.geoJSON(geojsonData, {
+    style: (feat) => ({
+      fillColor: getFeatureColor(feat.properties, variable),
+      fillOpacity: feat.properties.has_data ? 0.75 : 0.2,
+      color: '#fff',
+      weight: 0.6,
+      opacity: 0.9
+    }),
+    onEachFeature: (feat, layer) => {
+      layer.on({
+        mouseover: (e) => {
+          if (layer !== selectedLayer) {
+            layer.setStyle({ weight: 2, color: '#2d3748', fillOpacity: 0.9 });
+          }
+          const p = feat.properties;
+          if (p.has_data) {
+            layer.bindTooltip(
+              `<strong>${p.name}</strong><br>Izlaznost: ${p.izlaznost}%<br>Pobjednik: ${p.pobjednik || '—'}`,
+              { sticky: true, direction: 'top' }
+            ).openTooltip();
+          }
+        },
+        mouseout: (e) => {
+          if (layer !== selectedLayer) {
+            geojsonLayer.resetStyle(layer);
+          }
+          layer.closeTooltip();
+        },
+        click: () => selectOpcina(feat, layer)
+      });
+    }
+  }).addTo(map);
+
+  updateLegend(variable);
+}
+
+function updateMapColors() {
+  renderMap();
+  if (selectedLayer) {
+    selectedLayer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1 });
+  }
+}
+
+// ─── SELECT OPCINA ─────────────────────────────────────────────────────────
+async function selectOpcina(feat, layer) {
+  if (selectedLayer) geojsonLayer.resetStyle(selectedLayer);
+  selectedLayer = layer;
+  layer.setStyle({ weight: 3, color: '#f6ad55', fillOpacity: 1, zIndex: 999 });
+  
+  const geoKey = feat.properties.geo_key;
+  if (!geoKey || !feat.properties.has_data) {
+    showSidebar(null, feat.properties.name);
+    return;
+  }
+  
+  const data = sveOpcine[geoKey];
+  if (data) {
+    showSidebar(data, feat.properties.name);
+  } else {
+    showSidebar(null, feat.properties.name);
+  }
+}
+
+function showLoading() {
+  document.getElementById('sidebarContent').innerHTML = `
+    <div class="placeholder">
+      <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+      <p>Učitavanje podataka…</p>
+    </div>`;
+}
+
+// ─── SIDEBAR RENDER ────────────────────────────────────────────────────────
+function showSidebar(data, name) {
+  if (!data) {
+    document.getElementById('sidebarContent').innerHTML = `
+      <div class="placeholder"><p>Nema podataka za: <strong>${name}</strong></p></div>`;
+    return;
+  }
+
+  const izlaznost = data.ukupno_biraca > 0 
+    ? ((data.glasovalo / data.ukupno_biraca) * 100).toFixed(1) 
+    : '—';
+
+  const nevazeci_pct = data.vazeci > 0
+    ? ((data.nevazeci / (data.vazeci + data.nevazeci)) * 100).toFixed(1)
+    : '—';
+
+  // Sort stranke by votes
+  const stranke_sorted = Object.entries(data.stranke)
+    .sort((a, b) => b[1].glasovi - a[1].glasovi)
+    .filter(([,v]) => v.glasovi > 0);
+
+  const total_vazeci = data.vazeci || 1;
+
+  document.getElementById('sidebarContent').innerHTML = `
+    <div class="opcina-header">
+      <h2>${data.opcina}</h2>
+      <div class="meta">${data.zupanija} · ${data.ij_naziv}</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="val">${data.ukupno_biraca.toLocaleString('hr')}</div>
+        <div class="lbl">Ukupno birača</div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${data.glasovalo.toLocaleString('hr')}</div>
+        <div class="lbl">Glasovalo</div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${izlaznost}%</div>
+        <div class="lbl">Izlaznost</div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${data.vazeci.toLocaleString('hr')}</div>
+        <div class="lbl">Važeći listići</div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${data.nevazeci.toLocaleString('hr')}</div>
+        <div class="lbl">Nevažeći</div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${nevazeci_pct}%</div>
+        <div class="lbl">% nevažećih</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('stranke', this)">Stranke</div>
+      <div class="tab" onclick="switchTab('kandidati', this)">Kandidati</div>
+      <div class="tab" onclick="switchTab('bm', this)">Bir. mjesta</div>
+    </div>
+
+    <div id="tab-stranke" class="tab-content active">
+      <div class="stranke-list">
+        ${stranke_sorted.map(([pname, pdata], i) => {
+          const pct = ((pdata.glasovi / total_vazeci) * 100).toFixed(1);
+          const color = partyColor(shortPartyName(pname));
+          const cands = Object.entries(pdata.kandidati)
+            .sort((a,b) => b[1]-a[1])
+            .filter(([,v]) => v > 0)
+            .slice(0, 14);
+          return `
+          <div class="stranka-row" onclick="toggleStranka(this)">
+            <div class="stranka-top">
+              <div class="stranka-color" style="background:${color}"></div>
+              <div class="stranka-name">${pname}</div>
+              <div class="stranka-votes">
+                <div class="num">${pdata.glasovi.toLocaleString('hr')}</div>
+                <div class="pct">${pct}%</div>
+              </div>
+            </div>
+            <div class="stranka-bar-wrap">
+              <div class="stranka-bar" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <div class="kandidati-list">
+              ${cands.map(([cname, cvotes]) => `
+                <div class="kandidat-row">
+                  <span>${cname}</span>
+                  <span class="pref">${cvotes.toLocaleString('hr')}</span>
+                </div>`).join('')}
+              ${cands.length === 0 ? '<div class="kandidat-row"><span style="color:#a0aec0">Nema preferencijalnih glasova</span></div>' : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div id="tab-kandidati" class="tab-content">
+      <div class="stranke-list" id="all-kandidati">
+        ${renderAllKandidati(stranke_sorted, total_vazeci)}
+      </div>
+    </div>
+
+    <div id="tab-bm" class="tab-content">
+      <div class="bm-search">
+        <input type="text" placeholder="Pretraži biračka mjesta…" oninput="filterBM(this.value)">
+      </div>
+      <div class="bm-list" id="bm-list">
+        ${renderBMList(data.biracka_mjesta)}
+      </div>
+    </div>
+  `;
+
+  window._currentBM = data.biracka_mjesta;
+}
+
+function renderAllKandidati(stranke_sorted, total_vazeci) {
+  return stranke_sorted.map(([pname, pdata]) => {
+    const cands = Object.entries(pdata.kandidati).sort((a,b) => b[1]-a[1]).filter(([,v]) => v > 0);
+    if (cands.length === 0) return '';
+    const color = partyColor(shortPartyName(pname));
+    return `
+      <div style="padding:8px 16px 4px; border-bottom:2px solid #e2e8f0">
+        <div style="font-size:0.72rem;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.5px">${pname}</div>
+        ${cands.map(([cname, cvotes]) => {
+          const pct = ((cvotes / total_vazeci) * 100).toFixed(2);
+          return `<div class="kandidat-row">
+            <span>${cname}</span>
+            <span class="pref">${cvotes.toLocaleString('hr')} <span style="color:#a0aec0;font-weight:400">(${pct}%)</span></span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+}
+
+function renderBMList(bm_list, filter='') {
+  const filtered = filter 
+    ? bm_list.filter(bm => 
+        (bm.naziv||'').toLowerCase().includes(filter.toLowerCase()) ||
+        (bm.lokacija||'').toLowerCase().includes(filter.toLowerCase()))
+    : bm_list;
+  
+  if (filtered.length === 0) return '<div style="padding:16px;color:#a0aec0;text-align:center">Nema rezultata</div>';
+  
+  return filtered.map(bm => {
+    const izl = bm.ukupno_biraca > 0 ? ((bm.glasovalo/bm.ukupno_biraca)*100).toFixed(1) : '—';
+    const topStranke = Object.entries(bm.stranke)
+      .sort((a,b) => b[1].glasovi - a[1].glasovi)
+      .filter(([,v]) => v.glasovi > 0)
+      .slice(0, 5);
+    
+    return `
+    <div class="bm-item" onclick="toggleBM(this)">
+      <div class="bm-name">${bm.rbr}. ${bm.naziv}</div>
+      <div class="bm-sub">${bm.lokacija}</div>
+      <div class="bm-stats">Birača: ${bm.ukupno_biraca.toLocaleString('hr')} · Glasovalo: ${bm.glasovalo.toLocaleString('hr')} · Izlaznost: ${izl}%</div>
+      <div class="bm-detail">
+        <div class="bm-stranke">
+          ${topStranke.map(([pname, votes]) => {
+            const pct = bm.vazeci > 0 ? ((votes/bm.vazeci)*100).toFixed(1) : '—';
+            return `<div class="bm-stranka-row">
+              <span>${pname}</span>
+              <span style="font-weight:600">${votes.toLocaleString('hr')} (${pct}%)</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterBM(val) {
+  if (window._currentBM) {
+    document.getElementById('bm-list').innerHTML = renderBMList(window._currentBM, val);
+  }
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function shortPartyName(name) {
+  const n = name.toUpperCase();
+  if (n.includes('HDZ')) return 'HDZ';
+  if (n.includes('SDP')) return 'SDP';
+  if (n.includes('MOŽEMO') || n.includes('MOZEMO')) return 'MOŽEMO!';
+  if (n.includes('DOMOVINSKI POKRET')) return 'DP';
+  if (n.includes('MOST NEZAVISNIH')) return 'MOST';
+  if (n.includes('ŽIVI ZID')) return 'ŽZ';
+  if (n.includes('REFORMISTI')) return 'REF';
+  if (n.includes('DEMOKRATI')) return 'DEM';
+  if (n.includes('HNS')) return 'HNS';
+  return name;
+}
+
+function toggleStranka(el) {
+  el.classList.toggle('expanded');
+}
+
+function toggleBM(el) {
+  el.classList.toggle('expanded');
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ─── LEGEND ────────────────────────────────────────────────────────────────
+let legendEl = null;
+
+function updateLegend(variable) {
+  if (legendEl) legendEl.remove();
+  
+  const div = document.createElement('div');
+  div.className = 'legend';
+  
+  if (variable === 'pobjednik') {
+    div.innerHTML = '<div class="legend-title">Pobjednička stranka</div>' +
+      Object.entries(PARTY_COLORS).map(([k,v]) => 
+        `<div class="legend-item"><div class="legend-color" style="background:${v}"></div>${k}</div>`
+      ).join('') +
+      `<div class="legend-item"><div class="legend-color" style="background:#a0aec0"></div>Ostalo</div>`;
+  } else if (variable === 'izlaznost') {
+    div.innerHTML = `<div class="legend-title">Izlaznost</div>
+      <div class="legend-item"><div class="legend-color" style="background:#276749"></div>≥70%</div>
+      <div class="legend-item"><div class="legend-color" style="background:#38a169"></div>60–70%</div>
+      <div class="legend-item"><div class="legend-color" style="background:#68d391"></div>50–60%</div>
+      <div class="legend-item"><div class="legend-color" style="background:#c6f6d5"></div>40–50%</div>
+      <div class="legend-item"><div class="legend-color" style="background:#f0fff4"></div>&lt;40%</div>`;
+  } else {
+    div.innerHTML = `<div class="legend-title">Glasovi</div>
+      <div class="legend-item"><div class="legend-color" style="background:#3182ce"></div>Više</div>
+      <div class="legend-item"><div class="legend-color" style="background:#bee3f8"></div>Manje</div>
+      <div class="legend-item"><div class="legend-color" style="background:#edf2f7"></div>0</div>`;
+  }
+  
+  document.getElementById('map').appendChild(div);
+  legendEl = div;
+}
+
+// ─── START ─────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
