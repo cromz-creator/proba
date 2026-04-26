@@ -398,7 +398,8 @@ async function selectOpcina(feat, layer) {
     return;
   }
   
-  const data = sveOpcine[geoKey];
+ console.log('geoKey:', geoKey, 'found:', !!sveOpcine[geoKey], 'sample keys:', Object.keys(sveOpcine).slice(0,3));
+const data = sveOpcine[geoKey];
   if (data) {
     showSidebar(data, feat.properties.name);
   } else {
